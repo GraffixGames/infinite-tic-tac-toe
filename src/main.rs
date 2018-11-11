@@ -1,38 +1,12 @@
 mod game;
 mod board;
 use game::Game;
-use board::{Board, Winner, BoardState};
+use board::{Plr, Board, BoardState};
 
 use std::{
     env,
     error::Error,
 };
-
-const BOARD_SIZE: usize = 3;
-
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub enum Tile {
-    X,
-    O,
-}
-
-impl Tile {
-    pub fn swap(self) -> Self {
-        match self {
-            Tile::X => Tile::O,
-            Tile::O => Tile::X,
-        }
-    }
-}
-
-impl<'a> Into<&'a str> for Tile {
-    fn into(self) -> &'a str {
-        match self {
-            Tile::X => "X",
-            Tile::O => "O",
-        }
-    }
-}
 
 fn main() {
     let mut args = env::args();
@@ -57,10 +31,10 @@ fn main() {
     }
 
     match game.winner().unwrap() {
-        Winner::Tie => println!("Nobody won, it was a tie!"),
-        Winner::Tile(t) => {
-            let tile: &str = t.into();
-            println!("{} won the game!", tile);
+        None => println!("Nobody won, it was a tie!"),
+        Some(p) => {
+            let player: &str = p.into();
+            println!("{} won the game!", player);
         },
     }
 }
