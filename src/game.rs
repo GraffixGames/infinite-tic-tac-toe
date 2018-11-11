@@ -1,16 +1,16 @@
-use super::{Tile, Board, BoardState, Winner};
+use super::{Plr, Board, BoardState};
 
 #[derive(Clone, Debug)]
 pub struct Game {
     pub(crate) board: Board,
-    current_player: Tile,
+    current_player: Plr,
 }
 
 impl Game {
     pub fn new(depth: u32) -> Self {
         Game {
             board: Board::new(depth),
-            current_player: Tile::X,
+            current_player: Plr::X,
         }
     }
 
@@ -20,7 +20,7 @@ impl Game {
 		println!();
 	}
 
-	pub fn winner(&self) -> Option<Winner> {
+	pub fn winner(&self) -> Option<Option<Plr>> {
 		match self.board.state() {
 			BoardState::Complete(winner) => Some(winner),
 			BoardState::Running => None,

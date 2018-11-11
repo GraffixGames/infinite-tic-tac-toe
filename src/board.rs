@@ -1,79 +1,97 @@
 use std::io::{self, Write};
-use super::{Tile, BOARD_SIZE};
+use std::thread;
+use std::sync::mpsc;
+
+const BOARD_SIZE: usize = 3;
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum Plr {
+    X,
+    O,
+}
+
+impl Plr {
+    pub fn swap(self) -> Self {
+        match self {
+            Plr::X => Plr::O,
+            Plr::O => Plr::X,
+        }
+    }
+}
+
+impl<'a> Into<&'a str> for Plr {
+    fn into(self) -> &'a str {
+        match self {
+            Plr::X => "X",
+            Plr::O => "O",
+        }
+    }
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub enum Tile {
+    Plr(Option<Plr>),
+    Board(Box<Board>),
+}
+
+impl Tile {
+    pub fn is_player(&self) -> bool {
+        match *self {
+            Tile::Plr(Some(_)) => true,
+            _ => false,
+        }
+    }
+}
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum BoardState {
-    Complete(Winner),
+    Complete(Option<Plr>),
     Running,
 }
 
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
-pub enum Winner {
-    Tile(Tile),
-    Tie,
-}
-
-#[derive(Clone, Debug)]
-pub enum Board {
-    Base([[Option<Tile>; BOARD_SIZE]; BOARD_SIZE]),
-    Over(Vec<Vec<Box<Board>>>),
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct Board {
+    tiles: Vec<Vec<Box<Tile>>>,
 }
 
 impl Board {
-    pub fn new(sub_boards: u32) -> Self {
-        if sub_boards == 0 {
-            Board::Base([[None; BOARD_SIZE]; BOARD_SIZE])
+    pub fn new(depth: u32) -> Self {
+        let tiles = if depth == 0 {
+            vec![vec![Box::new(Tile::Plr(None)); BOARD_SIZE]; BOARD_SIZE]
         } else {
-            Board::Over(vec![vec![Box::new(Board::new(sub_boards - 1)); BOARD_SIZE]; BOARD_SIZE])
+            let (tx, rx) = mpsc::channel();
+
+            thread::spawn(move || {
+                tx.send(vec![vec![Box::new(Tile::Board(Box::new(Board::new(depth - 1)))); BOARD_SIZE]; BOARD_SIZE])
+            });
+            rx.recv().unwrap()
+        };
+
+        Board {
+            tiles,
         }
     }
 
     fn draw(&self) {
-        match *self {
-            Board::Base(ref tiles) => {
-                println!("Base Board");
-                print!("  ");
-                for column_marker in 1..=BOARD_SIZE {
-                    print!("{} ", column_marker);
-                }
-                println!("");
-
-                for row in 0..tiles.len() {
-                    print!("{}", row + 1);
-                    for col in 0..tiles[row].len() {
-                        print!(" ");
-                        let tile = match tiles[row][col] {
-                            Some(t) => t.into(),
-                            None => "?",
-                        };
-                        print!("{}", tile);
-                    }
-                    println!("");
-                }
+        print!("  ");
+        for column_marker in 1..=BOARD_SIZE {
+            print!("{} ", column_marker);
+        }
+        println!("");
+        for row in 0..BOARD_SIZE {
+            print!("{}", row + 1);
+            for col in 0..BOARD_SIZE {
+                print!(" ");
+                let tile = if let Tile::Plr(Some(p)) = *self.tiles[row][col] {
+                     p.into()
+                } else if let Tile::Plr(None) = *self.tiles[row][col] {
+                    "-"
+                } else {
+                    "?"
+                };
+                print!("{}", tile);
             }
-
-            Board::Over(ref boards) => {
-                println!("Over Board");
-                print!("  ");
-                for column_marker in 1..=BOARD_SIZE {
-                    print!("{} ", column_marker);
-                }
-                println!("");
-
-                for row in 0..boards.len() {
-                    print!("{}", row + 1);
-                    for col in 0..boards[row].len() {
-                        print!(" ");
-                        let tile = match boards[row][col].state() {
-                            BoardState::Running => "?",
-                            BoardState::Complete(Winner::Tile(t)) => t.into(),
-                            BoardState::Complete(Winner::Tie) => "-",
-                        };
-                        print!("{}", tile);
-                    }
-                    println!("");
-                }
-            }
+            println!("");
         }
     }
 
@@ -82,15 +100,9 @@ impl Board {
         combos.extend({
             let mut row_combos = Vec::new();
             for row in 0..BOARD_SIZE {
-                let mut combo = Vec::new();
+                let mut combo = Vec::with_capacity(BOARD_SIZE);
                 for col in 0..BOARD_SIZE {
-                    match *self {
-                        Board::Base(ref tiles) => combo.push(tiles[row][col]),
-                        Board::Over(ref boards) => combo.push(match boards[row][col].state(){
-                            BoardState::Complete(Winner::Tile(t)) => Some(t),
-                            _ => None,
-                        }),
-                    }
+                    combo.push(&self.tiles[row][col]);
                 }
                 row_combos.push(combo);
             }
@@ -99,92 +111,71 @@ impl Board {
         combos.extend({
             let mut column_combos = Vec::new();
             for col in 0..BOARD_SIZE {
-                let mut combo = Vec::new();
+                let mut combo = Vec::with_capacity(BOARD_SIZE);
                 for row in 0..BOARD_SIZE {
-                    match *self {
-                        Board::Base(ref tiles) => combo.push(tiles[row][col]),
-                        Board::Over(ref boards) => combo.push(match boards[row][col].state(){
-                            BoardState::Complete(Winner::Tile(t)) => Some(t),
-                            _ => None,
-                        }),
-                    }
+                    combo.push(&self.tiles[row][col]);
                 }
                 column_combos.push(combo);
             }
             column_combos
         });
         combos.extend({
-            let mut tl_br = Vec::new();
-            let mut tr_bl = Vec::new();
+            let mut tl_br = Vec::with_capacity(BOARD_SIZE);
+            let mut tr_bl = Vec::with_capacity(BOARD_SIZE);
             for coord in 0..BOARD_SIZE {
-                match *self {
-                    Board::Base(ref tiles) => {
-                        tl_br.push(tiles[coord][coord]);
-                        tr_bl.push(tiles[coord][BOARD_SIZE - 1 - coord]);
-                    },
-                    Board::Over(ref boards) => {
-                        tl_br.push(match boards[coord][coord].state() {
-                            BoardState::Complete(Winner::Tile(t)) => Some(t),
-                            _ => None,
-                        });
-                        tr_bl.push(match boards[coord][BOARD_SIZE - 1 - coord].state() {
-                            BoardState::Complete(Winner::Tile(t)) => Some(t),
-                            _ => None,
-                        });
-                    }
-                }
+                tl_br.push(&self.tiles[coord][coord]);
+                tr_bl.push(&self.tiles[coord][BOARD_SIZE - 1 - coord]);
             }
             vec![tl_br, tr_bl]
         });
 
-        for combo in &combos {
-            if let Some(tile) = combo[0] {
-                if combo.iter().all(|t| *t == Some(tile)) {
-                    return BoardState::Complete(Winner::Tile(tile))
+        for combo in combos.clone() {
+            if let Tile::Plr(Some(p)) = **combo[0] {
+                if combo.iter().all(|t| ***t == Tile::Plr(Some(p))) {
+                    return BoardState::Complete(Some(p))
                 }
             }
         };
 
-        if combos.iter().all(|row| row.iter().all(|tile| tile.is_some())) {
-            BoardState::Complete(Winner::Tie)
+        if combos.iter().all(|row| row.iter().all(|tile| tile.is_player())) {
+            BoardState::Complete(None)
         } else {
             BoardState::Running
         }
     }
 
-    fn make_move(&mut self, player: Tile, row: usize, col: usize) -> Result<(), ()> {
-        match *self {
-            Board::Base(ref mut tiles) => {
-                if tiles[row - 1][col - 1].is_some() {
-                    return Err(())
-                }
-                tiles[row - 1][col - 1] = Some(player);
+    fn make_move(&mut self, player: Plr, row: usize, col: usize) -> Result<(), ()> {
+        match *self.tiles[row - 1][col - 1].clone() {
+            Tile::Plr(ref p) => match p {
+                Some(_) => Err(()),
+                None => {
+                    self.tiles[row - 1][col - 1] = Box::new(Tile::Plr(Some(player)));
+                    Ok(())
+                },
+            },
+            Tile::Board(ref mut b) => {
+                self.tiles[row - 1][col - 1] = match b.play_turn(player) {
+                    BoardState::Complete(w) => Box::new(Tile::Plr(w)),
+                    BoardState::Running => Box::new(Tile::Board(Box::new(*b.clone()))),
+                };
                 Ok(())
             },
-            Board::Over(ref mut boards) => {
-                if boards[row - 1][col - 1].state() != BoardState::Running {
-                    return Err(())
-                }
-                boards[row - 1][col - 1].play_turn(player);
-                Ok(())
-            }
         }
-        
     }
 
-    pub fn play_turn(&mut self, player: Tile) {
+    pub fn play_turn(&mut self, player: Plr) -> BoardState {
         self.draw();
         loop {
             let (row, col) = prompt(player);
             if self.make_move(player, row, col).is_ok() {
-                break;
+                break self.state();
             }
             println!("That spot is occupied");
         }
     }
 }
 
-fn prompt(player: Tile) -> (usize, usize) {
+fn prompt(player: Plr) -> (usize, usize) {
         let player: &str = player.into();
 
         loop {
