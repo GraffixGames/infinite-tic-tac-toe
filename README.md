@@ -6,7 +6,7 @@ build with `cargo build --release`
 
 to launch the game, type: `tic-tac-toe [<depth>]` into your terminal.
 
-`depth` is how many levels of tic-tac-toe deep the game goes, default being regular tic-tac-toe.
+`depth` is how many levels of tic-tac-toe deep the game goes, default being regular tic-tac-toe. it is very much not optimized, so don't use more than 3-4, as it will get laggy
 
 ## examples
 
