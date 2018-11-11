@@ -2,7 +2,7 @@
 
 ## Usage
 
-build with `cargo build --release` or download from the Releases tab
+build with `cargo build --release` or download from the releases tab
 
 to launch the game, type: `tic-tac-toe [<depth>]` into your terminal.
 
