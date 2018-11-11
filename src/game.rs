@@ -17,6 +17,7 @@ impl Game {
 	pub fn play_turn(&mut self) {
 		self.board.play_turn(self.current_player);
 		self.current_player = self.current_player.swap();
+		println!();
 	}
 
 	pub fn winner(&self) -> Option<Winner> {
