@@ -12,6 +12,7 @@ pub enum Winner {
     Tile(Tile),
     Tie,
 }
+
 #[derive(Clone, Debug)]
 pub enum Board {
     Base([[Option<Tile>; BOARD_SIZE]; BOARD_SIZE]),
@@ -26,9 +27,7 @@ impl Board {
             Board::Over(vec![vec![Box::new(Board::new(sub_boards - 1)); BOARD_SIZE]; BOARD_SIZE])
         }
     }
-}
 
-impl Board {
     fn draw(&self) {
         match *self {
             Board::Base(ref tiles) => {
