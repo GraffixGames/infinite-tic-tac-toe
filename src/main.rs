@@ -1,4 +1,4 @@
-use std::io::{self, Read, Write};
+use std::io::{self, Write};
 
 const BOARD_SIZE: usize = 3;
 
@@ -121,20 +121,41 @@ impl Game {
     }
 
     pub fn state(&self) -> GameState {
-        let combos = &[
-            [self.board[0][0], self.board[0][1], self.board[0][2]],
-            [self.board[1][0], self.board[1][1], self.board[1][2]],
-            [self.board[2][0], self.board[2][1], self.board[2][2]],
+        let combos = {
+            let mut temp = Vec::new();
+            temp.push({
+                let temp = for row in 0..BOARD_SIZE {
+                    let mut temp = Vec::new();
+                    for column in 0..BOARD_SIZE {
+                        temp.push(self.board[row][column]);
+                    }
+                };
+                temp
+            });
+            temp.push({
+                let temp = for column in 0..BOARD_SIZE {
+                    let mut temp = Vec::new();
+                    for row in 0..BOARD_SIZE {
+                        temp.push(self.board[row][column]);
+                    }
+                };
+                temp
+            });
+            temp.push({
+                let mut tl_br = Vec::new();
+                let mut tr_bl = Vec::new();
+                for coord in 0..BOARD_SIZE {
+                    tl_br.push(self.board[coord][coord]);
+                    tr_bl.push(self.board[coord][BOARD_SIZE - 1 - coord]);
+                }
+                vec![tl_br, tr_bl]
+            });
+            temp
+        };
 
-            [self.board[0][0], self.board[1][0], self.board[2][0]],
-            [self.board[0][1], self.board[1][1], self.board[2][1]],
-            [self.board[0][2], self.board[1][2], self.board[2][2]],
+        println!("{:?}", combos.clone());
 
-            [self.board[0][0], self.board[1][1], self.board[2][2]],
-            [self.board[0][2], self.board[1][1], self.board[2][0]],
-        ];
-
-        for combo in combos {
+        for combo in &combos {
             if let Some(tile) = combo[0] {
                 if combo.iter().all(|t| *t == Some(tile)) {
                     return GameState::Winner(tile)
