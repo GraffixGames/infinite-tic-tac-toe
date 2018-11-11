@@ -1,12 +1,17 @@
-use std::io::{self, Write};
+mod game;
+mod board;
+use game::Game;
+use board::{Board, Winner, BoardState};
+
+use std::{
+    env,
+    error::Error,
+};
 
 const BOARD_SIZE: usize = 3;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-struct InvalidMove;
-
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-enum Tile {
+pub enum Tile {
     X,
     O,
 }
@@ -29,160 +34,33 @@ impl<'a> Into<&'a str> for Tile {
     }
 }
 
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
-enum GameState {
-    Winner(Tile),
-    Tie,
-    Running,
-}
-
-#[derive(Clone, Copy, Debug)]
-struct Game {
-    board: [[Option<Tile>; BOARD_SIZE]; BOARD_SIZE],
-    current_player: Tile,
-}
-
-impl Game {
-    pub fn new() -> Self {
-        Game {
-            board: [[None; BOARD_SIZE]; BOARD_SIZE],
-            current_player: Tile::X,
-        }
-    }
-
-    pub fn prompt_user(&self) -> (usize, usize) {
-        loop {
-            let player: &str = self.current_player.into();
-            print!("{}, please type the location of your move (row, column): ", player);
-            io::stdout().flush().expect("could not flush stdout");
-            let mut buffer = String::new();
-            io::stdin().read_line(&mut buffer).expect("could not read line");
-            let (row, col) = {
-                let parsed_input: Vec<char> = buffer
-                    .chars()
-                    .filter(|c| c.is_numeric())
-                    .collect();
-                
-                if parsed_input.len() != 2 {
-                    println!("your input was not valid, please make sure you only use '1' '2' '3' ',' and ' '");
-                    continue;
-                }
-
-                let row = parsed_input[0].to_digit(10).unwrap();
-                let col = parsed_input[1].to_digit(10).unwrap();
-                (row as usize, col as usize)
-            };
-
-            if row <= 3 && col <= 3 {
-                break (row, col);
-            }
-        }
-    }
-
-    pub fn draw_board(&self) {
-        print!("  ");
-        for column_marker in 1..=BOARD_SIZE {
-            print!("{} ", column_marker);
-        }
-        println!("");
-
-        for row in 0..self.board.len() {
-            print!("{}", row + 1);
-            for tile in 0..self.board[row].len() {
-                print!(" ");
-                let tile = match self.board[row][tile] {
-                    Some(t) => t.into(),
-                    None => "?",
-                };
-                print!("{}", tile);
-            }
-            println!("");
-        }
-    }
-
-    pub fn make_move(&mut self, row: usize, col: usize) -> Result<(), InvalidMove> {
-        if self.board[row - 1][col-1].is_some() {
-            return Err(InvalidMove);
-        }
-        self.board[row - 1][col - 1] = Some(self.current_player);
-        self.current_player = self.current_player.swap();
-        Ok(())
-    }
-
-    pub fn turn(&mut self) {
-        self.draw_board();
-        loop {
-            let (row, col) = self.prompt_user();
-            if self.make_move(row, col) == Ok(()) {
-                break;
-            }
-            println!("That spot is occupied");
-        }
-    }
-
-    pub fn state(&self) -> GameState {
-        let combos = {
-            let mut temp = Vec::new();
-            temp.push({
-                let temp = for row in 0..BOARD_SIZE {
-                    let mut temp = Vec::new();
-                    for column in 0..BOARD_SIZE {
-                        temp.push(self.board[row][column]);
-                    }
-                };
-                temp
-            });
-            temp.push({
-                let temp = for column in 0..BOARD_SIZE {
-                    let mut temp = Vec::new();
-                    for row in 0..BOARD_SIZE {
-                        temp.push(self.board[row][column]);
-                    }
-                };
-                temp
-            });
-            temp.push({
-                let mut tl_br = Vec::new();
-                let mut tr_bl = Vec::new();
-                for coord in 0..BOARD_SIZE {
-                    tl_br.push(self.board[coord][coord]);
-                    tr_bl.push(self.board[coord][BOARD_SIZE - 1 - coord]);
-                }
-                vec![tl_br, tr_bl]
-            });
-            temp
-        };
-
-        println!("{:?}", combos.clone());
-
-        for combo in &combos {
-            if let Some(tile) = combo[0] {
-                if combo.iter().all(|t| *t == Some(tile)) {
-                    return GameState::Winner(tile)
-                }
-            }
-        };
-
-        if combos.iter().all(|row| row.iter().all(|tile| tile.is_some())) {
-            GameState::Tie
-        } else {
-            GameState::Running
-        }
-    }
-}
-
 fn main() {
-    let mut game = Game::new();
-    while game.state() == GameState::Running {
-        game.turn();
+    let mut args = env::args();
+    args.next();
+    let depth = if let Some(arg) = args.next() {
+        match arg.parse::<u32>() {
+            Ok(depth) => depth,
+            Err(e) => {
+                eprintln!("you need to input a valid Natural Number");
+                eprintln!("{}", e.description());
+                return
+            },
+        }
+    } else {
+        0
+    };
+
+    let mut game = Game::new(depth);
+
+    while game.winner().is_none() {
+        game.play_turn();
     }
 
-    match game.state() {
-        GameState::Tie => println!("The game was a tie"),
-        GameState::Winner(tile) => {
-            let tile: &str = tile.into();
-            println!("The winner was: {}", tile);
+    match game.winner().unwrap() {
+        Winner::Tie => println!("Nobody won, it was a tie!"),
+        Winner::Tile(t) => {
+            let tile: &str = t.into();
+            println!("{} won the game!", tile);
         },
-        _ => ()
     }
 }
