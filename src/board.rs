@@ -1,7 +1,4 @@
 use std::io::{self, Write};
-use std::thread;
-use std::sync::mpsc;
-
 const BOARD_SIZE: usize = 3;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -59,12 +56,7 @@ impl Board {
         let tiles = if depth == 0 {
             vec![vec![Box::new(Tile::Plr(None)); BOARD_SIZE]; BOARD_SIZE]
         } else {
-            let (tx, rx) = mpsc::channel();
-
-            thread::spawn(move || {
-                tx.send(vec![vec![Box::new(Tile::Board(Box::new(Board::new(depth - 1)))); BOARD_SIZE]; BOARD_SIZE])
-            });
-            rx.recv().unwrap()
+            vec![vec![Box::new(Tile::Board(Box::new(Board::new(depth - 1)))); BOARD_SIZE]; BOARD_SIZE]
         };
 
         Board {
