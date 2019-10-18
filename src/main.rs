@@ -1,24 +1,30 @@
-mod game;
 mod board;
+mod game;
+use board::Board;
 use game::Game;
-use board::{Plr, Board, BoardState};
 
-use std::{
-    env,
-    error::Error,
-};
+use std::env;
+
+macro_rules! USAGE_FMT {
+    () => {
+r#"
+Usage:
+  {exe_path} [DEPTH]
+  DEPTH must be a natural number, and is 0 by default
+"#;
+    }
+}
 
 fn main() {
     let mut args = env::args();
-    args.next();
+    let exe_path = args.next().unwrap();
     let depth = if let Some(arg) = args.next() {
-        match arg.parse::<u32>() {
+        match arg.parse::<u8>() {
             Ok(depth) => depth,
-            Err(e) => {
-                eprintln!("you need to input a valid Natural Number");
-                eprintln!("{}", e.description());
-                return
-            },
+            Err(_) => {
+                eprint!(USAGE_FMT!(), exe_path = exe_path);
+                return;
+            }
         }
     } else {
         0
@@ -35,6 +41,6 @@ fn main() {
         Some(p) => {
             let player: &str = p.into();
             println!("{} won the game!", player);
-        },
+        }
     }
 }

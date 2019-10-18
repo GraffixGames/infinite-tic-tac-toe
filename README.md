@@ -1,33 +1,15 @@
 # Infinite Tic-Tac-Toe
 
+Tic-Tac-Toe with infinite depth. Depth 0 is a regular game, depth 1 is Ultimate
+Tic-Tac-Toe, etc.
+
 ## Usage
 
-build with `cargo build --release` or download from the releases tab
-
-to launch the game, type: `tic-tac-toe [<depth>]` into your terminal.
-
-`depth` is how many levels of tic-tac-toe deep the game goes, default being regular tic-tac-toe. Creation time takes a fair amount of time when using a depth of over 6ish, depending on your system
-
-## examples
-
-### Regular Tic-Tac-Toe
+Build with `cargo build` or download from the releases tab.
 
 ```
-$ tic-tac-toe
-  1 2 3
-1 ? ? ?
-2 ? ? ?
-3 ? ? ?
-X, please type the location of your move (row, column):
+Usage:
+  tic-tac-toe [DEPTH]
+  DEPTH must be a natural number, and is 0 by default
 ```
 
-#### Regular Ultimate Tic-Tac-Toe
-
-```
-$ tic-tac-toe 1
-  1 2 3
-1 ? ? ?
-2 ? ? ?
-3 ? ? ?
-X, please type the location of your move (row, column):
-```
